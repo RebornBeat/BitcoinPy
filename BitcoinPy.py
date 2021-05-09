@@ -34,14 +34,6 @@ class Block(object):
 
         self.timestamp = timestamp or time.time()
 
-    @property
-
-    def compute_hash(self, block):
-
-        string_block = "{}{}{}{}{}".format(self.index, self.proof_number, self.previous_hash, self.data, self.timestamp)
-
-        return hashlib.sha256(string_block.encode()).hexdigest()
-
     def form(self):
 
         return { "index": self.index, "proof_number": self.proof_number, "previous_hash": self.previous_hash, "txns": self.txns, "timestamp": self.timestamp}
@@ -128,6 +120,25 @@ class BlockChain(object):
 
         return self.chain[-1]
 
+
+    def compute_hash(self, block):
+
+        index = block['index']
+
+        proof_number = block['proof_number']
+
+        previous_hash = block['previous_hash']
+
+        txns = block['txns']
+
+        timestamp = block['timestamp']
+
+        string_block = "{}{}{}{}{}".format(index, proof_number, previous_hash, txns, timestamp)
+
+        hashed_block =  hashlib.sha256(string_block.encode()).hexdigest()
+
+        return hashed_block
+
     def chain_validity(self):
 
         pass
@@ -180,6 +191,19 @@ class BlockChain(object):
 
         )
 
+    def check_for_chain():
+        if not os.path.isfile(Chain_Path):
+            return
+        try:
+            with open(Chain_Path, "r") as f:
+                imported_chain = json.load(f)
+                chain_length = len(imported_chain)
+                logger.info(f"Loading chain from disk with {chain_length} blocks")
+                for block in imported_chain:
+                    connect_block(block)
+        except Exception:
+            logger.exception('Failed to load chain, starting from genesis')
+
 
 def get_wallet():
 
@@ -227,6 +251,8 @@ if __name__ == '__main__':
 
     last_block = blockchain.latest_block
 
+    print("Last Block", last_block)
+
     last_proof_number = last_block['proof_number']
 
     proof_number = blockchain.proof_of_work(last_proof_number)
@@ -235,18 +261,22 @@ if __name__ == '__main__':
 
         sender="0", #this means that this node has constructed another block
 
-        receiver="LiveEdu.tv",
+        receiver="Christian",
 
         amount=1, #building a new block (or figuring out the proof number) is awarded with 1
 
     )
 
-    last_hash = block.compute_hash
+    print(last_block)
+
+    last_hash = blockchain.compute_hash(last_block)
 
     block = blockchain.build_block(proof_number, last_hash)
 
     print("WOW, MINING HAS BEEN SUCCESSFUL!")
 
     print(blockchain.chain)
+
+    logging.shutdown()
 
 
