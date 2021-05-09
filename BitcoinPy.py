@@ -22,7 +22,7 @@ import json
 
 class Block(object):
 
-    def __init__(self, index, proof_number, previous_hash, data, timestamp=None):
+    def __init__(self, index, proof_number, previous_hash, txns, timestamp=None):
 
         self.index = index
 
@@ -30,21 +30,21 @@ class Block(object):
 
         self.previous_hash = previous_hash
 
-        self.data = data
+        self.txns = txns
 
         self.timestamp = timestamp or time.time()
 
     @property
 
-    def compute_hash(self):
+    def compute_hash(self, block):
 
         string_block = "{}{}{}{}{}".format(self.index, self.proof_number, self.previous_hash, self.data, self.timestamp)
 
         return hashlib.sha256(string_block.encode()).hexdigest()
 
-    def __repr__(self):
+    def form(self):
 
-        return "{} - {} - {} - {} - {}".format(self.index, self.proof_number, self.previous_hash, self.data, self.timestamp)
+        return { "index": self.index, "proof_number": self.proof_number, "previous_hash": self.previous_hash, "txns": self.txns, "timestamp": self.timestamp}
 
 class BlockChain(object):
 
@@ -52,7 +52,7 @@ class BlockChain(object):
 
         self.chain = []
 
-        self.current_data = []
+        self.txns = []
 
         self.nodes = set()
 
@@ -60,23 +60,25 @@ class BlockChain(object):
 
     def build_genesis(self):
 
-        self.build_block(proof_number=0, previous_hash=0)
+        self.build_block(proof_number=0, previous_hash=0, timestamp=1501821412)
 
-    def build_block(self, proof_number, previous_hash):
+    def build_block(self, proof_number, previous_hash, timestamp=None):
 
         block = Block(
 
-            index=len(self.chain),
+            index = len(self.chain),
 
-            proof_number=proof_number,
+            proof_number = proof_number,
 
-            previous_hash=previous_hash,
+            previous_hash = previous_hash,
 
-            data=self.current_data
+            txns = self.txns,
 
-        )
+            timestamp = timestamp
 
-        self.current_data = []
+        ).form()
+
+        self.txns = []
 
         self.chain.append(block)
 
@@ -100,9 +102,9 @@ class BlockChain(object):
 
         return True
 
-    def get_data(self, sender, receiver, amount):
+    def add_txns(self, sender, receiver, amount):
 
-        self.current_data.append({
+        self.txns.append({
 
             'sender': sender,
 
@@ -179,6 +181,31 @@ class BlockChain(object):
         )
 
 
+def get_wallet():
+
+    if os.path.isfile(Wallet_Path):
+        with open(Wallet_Path, 'rb') as f:
+            signing_key = ecdsa.SigningKey.from_string(f.read(), curve=ecdsa.SECP256k1)
+    else:
+        #logger.info("New Wallet Generated:", Wallet_Path)
+        print("New Wallet Generated:", Wallet_Path)
+        signing_key = ecdsa.SigningKey.generate(curve=ecdsa.SECP256k1)
+        #logger.info(signing_key)
+        print(signing_key)
+        with open(Wallet_Path, 'wb') as f:
+            f.write(signing_key.to_string())
+
+    verifying_key = signing_key.get_verifying_key()
+    sha = hashlib.sha256(verifying_key.to_string()).digest()
+    print("Sha", sha)
+    ripe = hashlib.new('ripemd160', sha).digest()
+    print("Ripe", ripe)
+    my_address = b58encode_check(b'\x00' + ripe)
+    #logger.info("your address is:", my_address.decode("utf-8"))
+    print("your address is:", my_address.decode("utf-8"))
+
+    return signing_key, verifying_key, my_address
+
 
 if __name__ == '__main__':
 
@@ -200,11 +227,11 @@ if __name__ == '__main__':
 
     last_block = blockchain.latest_block
 
-    last_proof_number = last_block.proof_number
+    last_proof_number = last_block['proof_number']
 
     proof_number = blockchain.proof_of_work(last_proof_number)
 
-    blockchain.get_data(
+    blockchain.add_txns(
 
         sender="0", #this means that this node has constructed another block
 
@@ -214,7 +241,7 @@ if __name__ == '__main__':
 
     )
 
-    last_hash = last_block.compute_hash
+    last_hash = block.compute_hash
 
     block = blockchain.build_block(proof_number, last_hash)
 
