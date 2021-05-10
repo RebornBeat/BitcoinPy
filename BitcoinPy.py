@@ -312,7 +312,11 @@ def connect_to_seeds():
         response_data = client.recv(1024)
         connection.responce_format("version", version_message, response_data)
 
-
+        verack_message = connection.create_message_verack()
+        print("Verack Messag:", verack_message)
+        client.send(version_message)
+        response_data = client.recv(1024)
+        connection.responce_format("verack", verack_message, response_data)
 
 if __name__ == '__main__':
 
