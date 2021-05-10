@@ -283,6 +283,25 @@ def check_for_chain():
     except Exception:
         logger.exception('Failed to load chain, starting from genesis')
 
+def connect_to_seeds():
+
+    for seed in DNS_SEEDS:
+
+        print("Looping through seeds")
+
+        try:
+            target_host = socket.gethostbyname(seed)
+        except:
+            continue
+
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        try:
+            client.connect((target_host, 8333))
+        except:
+            print("Continued")
+            continue
+
 
 if __name__ == '__main__':
 
