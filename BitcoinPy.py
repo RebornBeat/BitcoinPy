@@ -232,6 +232,25 @@ class Connection(object):
         payload = struct.pack('<LQQ26s26sQ16sL', version, services, timestamp, addr_peer, addr_local, nonce, self.create_sub_version(), start_height)
         return(payload)
 
+    def send_message(self, target_host, message, client):
+
+        client.send(message)
+        total_data = False
+
+        while True:
+            response_data = client.recv(1024)
+            if total_data == False:
+                total_data = response_data
+                continue
+            if not response_data:
+                break
+            total_data += response_data
+
+        return total_data
+
+
+
+
     def responce_format(self, command, request_data, response_data):
         print("")
         print("Command: " + command)
@@ -299,7 +318,6 @@ def connect_to_seeds():
         try:
             client.connect((target_host, 8333))
         except:
-            print("Continued")
             continue
 
         connection =  Connection()
@@ -308,15 +326,17 @@ def connect_to_seeds():
         version_message = connection.create_message('version', version_payload)
         print("Version Payload", version_payload)
         print("Version Message:", version_message)
-        client.send(version_message)
-        response_data = client.recv(1024)
+        response_data = connection.send_message(target_host, version_message, client)
+
         connection.responce_format("version", version_message, response_data)
 
         verack_message = connection.create_message_verack()
         print("Verack Messag:", verack_message)
-        client.send(version_message)
-        response_data = client.recv(1024)
+        response_data = connection.send_message(target_host, version_message, client)
+
         connection.responce_format("verack", verack_message, response_data)
+
+
 
 if __name__ == '__main__':
 
