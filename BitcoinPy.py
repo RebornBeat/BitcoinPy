@@ -302,6 +302,17 @@ def connect_to_seeds():
             print("Continued")
             continue
 
+        connection =  Connection()
+
+        version_payload = connection.create_payload_version(seed=target_host)
+        version_message = connection.create_message('version', version_payload)
+        print("Version Payload", version_payload)
+        print("Version Message:", version_message)
+        client.send(version_message)
+        response_data = client.recv(1024)
+        connection.responce_format("version", version_message, response_data)
+
+
 
 if __name__ == '__main__':
 
