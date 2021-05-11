@@ -55,7 +55,7 @@ class BlockChain(object):
 
     def build_genesis(self):
 
-        self.build_block(proof_number=0, previous_hash=0, timestamp=1501821412)
+        self.build_block(proof_number=0, previous_hash=0000000000000000000000000000000000000000000000000000000000000000, timestamp=29AB5F49)
 
     def build_block(self, proof_number, previous_hash, timestamp=None):
 
@@ -203,6 +203,8 @@ class Connection(object):
         self.magic_value = 0xd9b4bef9
         self.my_address = "127.0.0.1"
         self.target_port = 8333
+        self.version_command_hex = None
+        self.verack_command_hex = '76657261636b000000000000'
 
     def create_sub_version(self):
         sub_version = "/Satoshi:0.7.2/"
@@ -239,16 +241,50 @@ class Connection(object):
 
         while True:
             response_data = client.recv(1024)
+
+            if not response_data:
+                break
+
             if total_data == False:
                 total_data = response_data
                 continue
-            if not response_data:
-                break
+
             total_data += response_data
 
         return total_data
 
+    def get_version_payload_verack(self, responce):
+        responce_hex = responce.hex()
+        magic_byte = struct.pack('L', self.magic_value).hex()
+        magic_received = responce_hex[:8]
 
+        if magic_byte != magic_received:
+            print("Corrupted Connection Invalid Magic Value Presented ")
+            return False
+
+        responce_hex = responce_hex[8:-1]
+        command = responce_hex[:24]
+
+        responce_hex = responce_hex[24:-1]
+        length = responce_hex[:8]
+
+        responce_hex = responce_hex[8:-1]
+        checksum = responce_hex[:8]
+
+        responce_hex = responce_hex[8:-1]
+
+        try:
+            verack_start = responce_hex.find(magic_byte)
+        except:
+            print("Connection not accepted Magic Byte for Verack not Found")
+            return False
+
+        payload = responce_hex[:verack_start]
+        verack_hex = responce_hex[verack_start:-1]
+        verack_hex =  verack_hex[8:-1]
+        verack_command = verack_hex[:24]
+
+        return True
 
 
     def responce_format(self, command, request_data, response_data):
@@ -277,12 +313,12 @@ def get_wallet():
 
     verifying_key = signing_key.get_verifying_key()
     sha = hashlib.sha256(verifying_key.to_string()).digest()
-    print("Sha", sha)
+    #print("Sha", sha)
     ripe = hashlib.new('ripemd160', sha).digest()
-    print("Ripe", ripe)
+    #print("Ripe", ripe)
     my_address = b58encode_check(b'\x00' + ripe)
     #logger.info("your address is:", my_address.decode("utf-8"))
-    print("your address is:", my_address.decode("utf-8"))
+    print("your address is:", my_address.decode("utf-8", ""))
 
     return signing_key, verifying_key, my_address
 
@@ -324,17 +360,16 @@ def connect_to_seeds():
 
         version_payload = connection.create_payload_version(seed=target_host)
         version_message = connection.create_message('version', version_payload)
-        print("Version Payload", version_payload)
-        print("Version Message:", version_message)
         response_data = connection.send_message(target_host, version_message, client)
-
         connection.responce_format("version", version_message, response_data)
+        is_accepted = connection.get_version_payload_verack(response_data)
+
+        if is_accepted == False:
+            continue
 
         verack_message = connection.create_message_verack()
-        print("Verack Messag:", verack_message)
-        response_data = connection.send_message(target_host, version_message, client)
-
-        connection.responce_format("verack", verack_message, response_data)
+        print("Verack Sent")
+        connection.send_message(target_host, version_message, client)
 
 
 
@@ -351,6 +386,8 @@ if __name__ == '__main__':
         "dnsseed.bitcoin.dashjr.org",
         "bitseed.xf2.org"
     ]
+
+    Bitcoin_Genesis = "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"
 
     Wallet_Path = os.getcwd() + '\wallet.dat'
 
